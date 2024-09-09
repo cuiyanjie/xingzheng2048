@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行政级别2048</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #faf8ef;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        #score {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>行政级别2048</h1>
+        <div id="score">得分: 0</div>
+        <div id="game-board"></div>
+    </div>
+
+    <script>
+        const ranks = {
+            0: "",
+            2: "科员",
+            4: "副科级",
+            8: "正科级",
+            16: "副处级",
+            32: "正处级",
+            64: "副厅级",
+            128: "正厅级",
+            256: "副部级",
+            512: "正部级",
+            1024: "副国级",
+            2048: "正国级"
+        };
+
+        const colors = {
+            0: ["#CDC1B4", "#776E65"],
+            2: ["#F9EBE0", "#000000"],
+            4: ["#F3D3B7", "#8B4513"],
+            8: ["#FFA07A", "#800000"],
+            16: ["#98FB98", "#006400"],
+            32: ["#87CEFA", "#00008B"],
+            64: ["#DDA0DD", "#4B0082"],
+            128: ["#F0E68C", "#8B008B"],
+            256: ["#E6E6FA", "#FF4500"],
+            512: ["#B0E0E6", "#FF1493"],
+            1024: ["#FFDAB9", "#2F4F4F"],
+            2048: ["#FFD700", "#8B0000"]
+        };
+
+        let grid = [];
+        let score = 0;
+
+        function initializeGame() {
+            grid = Array(4).fill().map(() => Array(4).fill(0));
+            score = 0;
+            addNewTile();
+            addNewTile();
+            updateGrid();
+        }
+
+        function addNewTile() {
+            let emptyCells = [];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) {
+                        emptyCells.push({i, j});
+                    }
+                }
+            }
+            if (emptyCells.length > 0) {
+                let {i, j} = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                grid[i][j] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function updateGrid() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    const value = grid[i][j];
+                    tile.textContent = ranks[value];
+                    tile.style.backgroundColor = colors[value][0];
+                    tile.style.color = colors[value][1];
+                    tile.style.fontSize = calculateFontSize(ranks[value]);
+                    gameBoard.appendChild(tile);
+                }
+            }
+            document.getElementById('score').textContent = `得分: ${score}`;
+        }
+
+        function calculateFontSize(text) {
+            if (text.length <= 2) return '24px';
+            if (text.length === 3) return '20px';
+            return '16px';
+        }
+
+        function move(direction) {
+            let moved = false;
+            const newGrid = JSON.parse(JSON.stringify(grid));
+
+            if (direction === 'ArrowLeft' || direction === 'ArrowRight') {
+                for (let i = 0; i < 4; i++) {
+                    let line = newGrid[i];
+                    if (direction === 'ArrowRight') line.reverse();
+                    let [newLine, lineScore] = mergeLine(line);
+                    if (direction === 'ArrowRight') newLine.reverse();
+                    if (JSON.stringify(newGrid[i]) !== JSON.stringify(newLine)) {
+                        moved = true;
+                        newGrid[i] = newLine;
+                        score += lineScore;
+                    }
+                }
+            } else {
+                for (let j = 0; j < 4; j++) {
+                    let line = [newGrid[0][j], newGrid[1][j], newGrid[2][j], newGrid[3][j]];
+                    if (direction === 'ArrowDown') line.reverse();
+                    let [newLine, lineScore] = mergeLine(line);
+                    if (direction === 'ArrowDown') newLine.reverse();
+                    if (JSON.stringify([newGrid[0][j], newGrid[1][j], newGrid[2][j], newGrid[3][j]]) !== JSON.stringify(newLine)) {
+                        moved = true;
+                        for (let i = 0; i < 4; i++) {
+                            newGrid[i][j] = newLine[i];
+                        }
+                        score += lineScore;
+                    }
+                }
+            }
+
+            if (moved) {
+                grid = newGrid;
+                addNewTile();
+                updateGrid();
+                if (isGameOver()) {
+                    showGameOver();
+                }
+            }
+        }
+
+        function mergeLine(line) {
+            let newLine = line.filter(x => x !== 0);
+            let lineScore = 0;
+            for (let i = 0; i < newLine.length - 1; i++) {
+                if (newLine[i] === newLine[i + 1]) {
+                    newLine[i] *= 2;
+                    lineScore += newLine[i];
+                    newLine.splice(i + 1, 1);
+                }
+            }
+            while (newLine.length < 4) {
+                newLine.push(0);
+            }
+            return [newLine, lineScore];
+        }
+
+        function isGameOver() {
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) return false;
+                    if (j < 3 && grid[i][j] === grid[i][j + 1]) return false;
+                    if (i < 3 && grid[i][j] === grid[i + 1][j]) return false;
+                }
+            }
+            return true;
+        }
+
+        function getHighestRank() {
+            let highestValue = Math.max(...grid.flat());
+            return ranks[highestValue];
+        }
+
+        function showGameOver() {
+            let highestRank = getHighestRank();
+            alert(`游戏结束！您的仕途最高级别是${highestRank}。`);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                event.preventDefault();
+                move(event.key);
+            }
+        });
+
+        initializeGame();
+    </script>
+</body>
+</html>
