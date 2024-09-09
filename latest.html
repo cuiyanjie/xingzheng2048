@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行政级别2048</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #faf8ef;
+        }
+        #game-container {
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .tile {
+            width: 100%;
+            height: 0;
+            padding-bottom: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            border-radius: 5px;
+            position: relative;
+        }
+        .tile span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+        }
+        #score {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        .button {
+            background-color: #8f7a66;
+            border-radius: 3px;
+            padding: 10px 20px;
+            color: #f9f6f2;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        #instructions {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f6f2;
+            border-radius: 6px;
+            text-align: left;
+
+        @media (max-width: 500px) {
+            .tile {
+                font-size: 16px;
+            }
+            
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>行政级别2048</h1>
+        <button id="restart-btn">重新开始</button>
+        <button id="showInstructions" class="button">玩法介绍</button>
+        <div id="score">得分: 0</div>
+        <div id="game-board"></div>
+        <button id="undo-btn">退一步</button>
+        <div id="instructions">
+            <h2>游戏玩法说明：</h2>
+            <p>1. 使用方向键或滑动操作移动方块。</p>
+            <p>2. 相同级别的方块相撞时会合并成更高一级的行政级别。</p>
+            <p>3. 每次移动后，会在空白处随机出现一个新的方块。</p>
+            <p>4. 目标是通过不断合并，最终达到最高行政级别。</p>
+            <p>5. 当无法进行有效移动时，游戏结束。</p>
+            <p>6. 挑战自己，获得最高分！</p>
+        </div>
+    </div>
+
+    <script>
+        const ranks = {
+            0: "",
+            2: "科员",
+            4: "副科级",
+            8: "正科级",
+            16: "副处级",
+            32: "正处级",
+            64: "副厅级",
+            128: "正厅级",
+            256: "副部级",
+            512: "正部级",
+            1024: "副国级",
+            2048: "正国级"
+        };
+
+        const colors = {
+            0: ["#CDC1B4", "#776E65"],
+            2: ["#F9EBE0", "#000000"],
+            4: ["#F3D3B7", "#8B4513"],
+            8: ["#FFA07A", "#800000"],
+            16: ["#98FB98", "#006400"],
+            32: ["#87CEFA", "#00008B"],
+            64: ["#DDA0DD", "#4B0082"],
+            128: ["#F0E68C", "#8B008B"],
+            256: ["#E6E6FA", "#FF4500"],
+            512: ["#B0E0E6", "#FF1493"],
+            1024: ["#FFDAB9", "#2F4F4F"],
+            2048: ["#FFD700", "#8B0000"]
+        };
+
+        let grid = [];
+        let score = 0;
+        let history = [];
+
+        function initializeGame() {
+            grid = Array(4).fill().map(() => Array(4).fill(0));
+            score = 0;
+            history = [];
+            addNewTile();
+            addNewTile();
+            updateGrid();
+        }
+
+        function addNewTile() {
+            let emptyCells = [];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) {
+                        emptyCells.push({i, j});
+                    }
+                }
+            }
+            if (emptyCells.length > 0) {
+                let {i, j} = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                grid[i][j] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function updateGrid() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    const value = grid[i][j];
+                    const span = document.createElement('span');
+                    span.textContent = ranks[value];
+                    tile.appendChild(span);
+                    tile.style.backgroundColor = colors[value][0];
+                    tile.style.color = colors[value][1];
+                    span.style.fontSize = calculateFontSize(ranks[value]);
+                    gameBoard.appendChild(tile);
+                }
+            }
+            document.getElementById('score').textContent = `得分: ${score}`;
+        }
+
+        function calculateFontSize(text) {
+            if (text.length <= 2) return '24px';
+            if (text.length === 3) return '20px';
+            return '16px';
+        }
+
+        function move(direction) {
+            saveState();
+            let moved = false;
+            const newGrid = JSON.parse(JSON.stringify(grid));
+
+            if (direction === 'ArrowLeft' || direction === 'ArrowRight') {
+                for (let i = 0; i < 4; i++) {
+                    let line = newGrid[i];
+                    if (direction === 'ArrowRight') line.reverse();
+                    let [newLine, lineScore] = mergeLine(line);
+                    if (direction === 'ArrowRight') newLine.reverse();
+                    if (JSON.stringify(newGrid[i]) !== JSON.stringify(newLine)) {
+                        moved = true;
+                        newGrid[i] = newLine;
+                        score += lineScore;
+                    }
+                }
+            } else {
+                for (let j = 0; j < 4; j++) {
+                    let line = [newGrid[0][j], newGrid[1][j], newGrid[2][j], newGrid[3][j]];
+                    if (direction === 'ArrowDown') line.reverse();
+                    let [newLine, lineScore] = mergeLine(line);
+                    if (direction === 'ArrowDown') newLine.reverse();
+                    if (JSON.stringify([newGrid[0][j], newGrid[1][j], newGrid[2][j], newGrid[3][j]]) !== JSON.stringify(newLine)) {
+                        moved = true;
+                        for (let i = 0; i < 4; i++) {
+                            newGrid[i][j] = newLine[i];
+                        }
+                        score += lineScore;
+                    }
+                }
+            }
+
+            if (moved) {
+                grid = newGrid;
+                addNewTile();
+                updateGrid();
+                if (isGameOver()) {
+                    showGameOver();
+                }
+            }
+        }
+
+        function mergeLine(line) {
+            let newLine = line.filter(x => x !== 0);
+            let lineScore = 0;
+            for (let i = 0; i < newLine.length - 1; i++) {
+                if (newLine[i] === newLine[i + 1]) {
+                    newLine[i] *= 2;
+                    lineScore += newLine[i];
+                    newLine.splice(i + 1, 1);
+                }
+            }
+            while (newLine.length < 4) {
+                newLine.push(0);
+            }
+            return [newLine, lineScore];
+        }
+
+        function isGameOver() {
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) return false;
+                    if (j < 3 && grid[i][j] === grid[i][j + 1]) return false;
+                    if (i < 3 && grid[i][j] === grid[i + 1][j]) return false;
+                }
+            }
+            return true;
+        }
+
+        function getHighestRank() {
+            let highestValue = Math.max(...grid.flat());
+            return ranks[highestValue];
+        }
+
+        function showGameOver() {
+            let highestRank = getHighestRank();
+            setTimeout(() => {
+                alert(`游戏结束！您的仕途最高级别是${highestRank}。`);
+            }, 100);
+        }
+
+        function saveState() {
+            history.push({
+                grid: JSON.parse(JSON.stringify(grid)),
+                score: score
+            });
+        }
+
+        function undo() {
+            if (history.length > 0) {
+                let lastState = history.pop();
+                grid = lastState.grid;
+                score = lastState.score;
+                updateGrid();
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                event.preventDefault();
+                move(event.key);
+            }
+        });
+
+        let touchStartX, touchStartY;
+        document.addEventListener('touchstart', (event) => {
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', (event) => {
+            if (!touchStartX || !touchStartY) return;
+            let touchEndX = event.changedTouches[0].clientX;
+            let touchEndY = event.changedTouches[0].clientY;
+            let dx = touchEndX - touchStartX;
+            let dy = touchEndY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                move(dx > 0 ? 'ArrowRight' : 'ArrowLeft');
+            } else {
+                move(dy > 0 ? 'ArrowDown' : 'ArrowUp');
+            }
+            touchStartX = touchStartY = null;
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', initializeGame);
+        document.getElementById('undo-btn').addEventListener('click', undo);
+        document.getElementById('showInstructions').addEventListener('click', function() {
+            var instructions = document.getElementById('instructions');
+            if (instructions.style.display === 'none' || instructions.style.display === '') {
+                instructions.style.display = 'block';
+            } else {
+                instructions.style.display = 'none';
+            }
+        });
+
+        initializeGame();
+    </script>
+</body>
+</html>
